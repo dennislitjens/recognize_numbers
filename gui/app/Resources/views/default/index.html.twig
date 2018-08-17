@@ -1,0 +1,146 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <style>
+        .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
+        .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
+    </style>
+    {% if output is defined %}
+        <div id="numberModal" class="modal fade" role="dialog">
+            <div class="modal-dialog">
+
+                {% if "[" in output %}
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal">&times;</button>
+                            <h4 class="modal-title text-center">It are the numbers: {{ output }}</h4>
+                        </div>
+                        <div class="modal-body">
+                            <img class="col-xs-offset-1 col-xs-10" src="uploads/numbers_recognized.png"/>
+                        </div>
+                    </div>
+                {% else %}
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title text-center">It is the number: {{ output }}</h4>
+                    </div>
+                    <div class="modal-body center-block">
+                        <img class="col-xs-offset-5 col-xs-2" src="uploads/prepared_image.png"/>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <script>
+            $("#getCodeModal").modal('show');
+        </script>
+    {% endif %}
+    <div class="container">
+        </br>
+        <div class="row">
+            <div class="jumbotron col-xs-8 col-xs-offset-2">
+                <div class="row">
+                <h2 class="text-center">Recognize numbers!</h2>
+                <p class="text-center">Drop your image below</p>
+                <div class="form-group">
+                    <div class="col-sm-10 col-sm-offset-1">
+                        <div class="dropzone"></div>  {# This is the element which is used as a dropzone #}
+                    </div>
+                </div>
+
+
+                <input type="hidden" id="linked_ID">
+                <input type="hidden" id="fileName">
+                <br/>
+                <div class="col-xs-4 col-xs-offset-4">
+                    <a href="{{ path('runpython') }}">
+                        <input id="submitButton" type="submit" class="btn btn-block btn-primary submitButton center-block" value="Submit" disabled="disabled"/>
+                    </a>
+                </div>
+                </br>
+                </div>
+                </br>
+                <div class="row">
+                    <p class="text-center" id="dennis">Created by Dennis Litjens</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        // init,configure dropzone
+        Dropzone.autoDiscover = false;
+        var dropzone_default = new Dropzone(".dropzone", {
+            url: '{{ path('fileuploadhandler') }}' ,
+            maxFiles: 1,
+            dictMaxFilesExceeded: 'Only 1 Image can be uploaded',
+            acceptedFiles: 'image/*',
+            maxFilesize: 3,  // in Mb
+            addRemoveLinks: true,
+            init: function () {
+                this.on("maxfilesexceeded", function(file) {
+                    this.removeFile(file);
+                });
+                this.on("sending", function(file, xhr, formData) {
+                    // send additional data with the file as POST data.
+                    formData.append("key", "value");
+                });
+                this.on("removedfile", function(file) {
+                    var fileName = $('#fileName').val();
+                    var linkedId = $('#linked_ID').val();
+
+                    // Delete file from server
+                    $.ajax({
+                        type: 'POST',
+                        url: '{{ path('deleteFileResource') }}',
+                        data: {
+                            id: linkedId,
+                            fileName: fileName
+                        },
+                        dataType: 'json'
+                    }).done(function (resp) {
+                        if (resp.deleted) {
+                            iziToast.show({
+                                title: 'Deleted!',
+                                message: 'Deleted File: <b>'+ fileName + '</b>.',
+                                color: 'yellow',
+                                position: 'topCenter'
+                            });
+                        } else if (resp.error) {
+                            iziToast.show({
+                                title: 'Error!',
+                                message: resp.error,
+                                color: 'red',
+                                position: 'topCenter'
+                            });
+                        }
+                    }).fail(function(resp) {
+                        console.error('xhr failed', resp);
+                        return false;
+                    });
+                });
+                this.on("success", function(file, response) {
+                    document.getElementById("submitButton").disabled = false;
+                });
+                // this event is required only to debug errors
+                this.on("error", function(file, errorMessage) {
+                    console.error('Error', errorMessage);
+                    iziToast.show({
+                        title: 'Upload Failed',
+                        message: errorMessage,
+                        color: 'red',
+                        position: 'topCenter'
+                    });
+                });
+            }
+        });
+        {% if output is defined %}
+                $("#numberModal").modal('show');
+        {% endif %}
+    </script>
+{% endblock %}
